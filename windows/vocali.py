@@ -15,27 +15,15 @@ from __future__ import annotations
 
 import concurrent.futures
 import logging
+import logging.handlers
+import os
 import sys
 import threading
 import time
 import traceback
 import webbrowser
 from enum import Enum
-
-from PIL import Image, ImageDraw
-import pystray
-
-import config
-import context_provider
-import postprocessing
-import transcription
-import updater
-from audio_recorder import AudioRecorder
-from hotkeys import HotkeyManager
-from paste import copy_selection, paste_text, restore_clipboard
-from recording_overlay import RecordingOverlay
-from settings_ui import SettingsWindow
-from version import VERSION
+from pathlib import Path
 
 
 # Context capture can take ~100–800 ms (UI Automation walks the focused app's
@@ -44,16 +32,62 @@ from version import VERSION
 CONTEXT_WAIT_TIMEOUT_S = 1.5
 
 
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s %(levelname)s %(message)s",
-)
-# `comtypes` and `uiautomation` log at INFO on every COM cache access; keep
-# them out of our stream.
-logging.getLogger("comtypes").setLevel(logging.WARNING)
-logging.getLogger("comtypes.client").setLevel(logging.WARNING)
-logging.getLogger("comtypes.client._code_cache").setLevel(logging.WARNING)
+def _log_dir() -> Path:
+    base = os.environ.get("LOCALAPPDATA") or os.environ.get("APPDATA") or os.path.expanduser("~")
+    p = Path(base) / "Vocali"
+    p.mkdir(parents=True, exist_ok=True)
+    return p
+
+
+def _setup_logging() -> None:
+    """Console + rotating file. The file lets us diagnose --windowed builds
+    where stderr is silently discarded by the PyInstaller windowed launcher."""
+    fmt = logging.Formatter("%(asctime)s %(levelname)s %(name)s %(message)s")
+    root = logging.getLogger()
+    root.setLevel(logging.INFO)
+
+    # Console (a no-op in --windowed PyInstaller builds, but useful from source).
+    stream = logging.StreamHandler()
+    stream.setFormatter(fmt)
+    root.addHandler(stream)
+
+    try:
+        log_path = _log_dir() / "vocali.log"
+        rotating = logging.handlers.RotatingFileHandler(
+            log_path, maxBytes=512 * 1024, backupCount=2, encoding="utf-8"
+        )
+        rotating.setFormatter(fmt)
+        root.addHandler(rotating)
+    except Exception:
+        # Never let logging setup itself crash the app.
+        pass
+
+    # `comtypes` and `uiautomation` log at INFO on every COM cache access.
+    logging.getLogger("comtypes").setLevel(logging.WARNING)
+    logging.getLogger("comtypes.client").setLevel(logging.WARNING)
+    logging.getLogger("comtypes.client._code_cache").setLevel(logging.WARNING)
+
+
+_setup_logging()
 log = logging.getLogger("vocali")
+
+
+# Heavy imports come after logging is configured so any ImportError gets
+# captured in the log file (vital for diagnosing PyInstaller-bundled builds).
+from PIL import Image, ImageDraw  # noqa: E402
+import pystray  # noqa: E402
+
+import config  # noqa: E402
+import context_provider  # noqa: E402
+import postprocessing  # noqa: E402
+import transcription  # noqa: E402
+import updater  # noqa: E402
+from audio_recorder import AudioRecorder  # noqa: E402
+from hotkeys import HotkeyManager  # noqa: E402
+from paste import copy_selection, paste_text, restore_clipboard  # noqa: E402
+from recording_overlay import RecordingOverlay  # noqa: E402
+from settings_ui import SettingsWindow  # noqa: E402
+from version import VERSION  # noqa: E402
 
 
 class State(Enum):
@@ -577,11 +611,50 @@ class VocaliApp:
         self._edit_original_clipboard = ""
 
 
+def _write_startup_error(exc: BaseException) -> None:
+    """Last-resort dumper for boot crashes.
+
+    `_setup_logging()` should already be writing to vocali.log, but if
+    that itself failed we still want a paper trail somewhere. Try the
+    LOCALAPPDATA dir first, then the user profile, then the cwd.
+    """
+    payload = (
+        f"Vocali v{VERSION} startup crashed at {time.strftime('%Y-%m-%d %H:%M:%S')}\n"
+        f"sys.executable={sys.executable}\n"
+        f"sys.argv={sys.argv!r}\n"
+        f"frozen={getattr(sys, 'frozen', False)}\n"
+        f"_MEIPASS={getattr(sys, '_MEIPASS', None)!r}\n\n"
+        + "".join(traceback.format_exception(type(exc), exc, exc.__traceback__))
+    )
+    candidates = [
+        os.environ.get("LOCALAPPDATA"),
+        os.environ.get("APPDATA"),
+        os.path.expanduser("~"),
+        os.getcwd(),
+    ]
+    for base in candidates:
+        if not base:
+            continue
+        try:
+            target_dir = Path(base) / "Vocali"
+            target_dir.mkdir(parents=True, exist_ok=True)
+            (target_dir / "vocali.startup_error.log").write_text(payload, encoding="utf-8")
+            return
+        except Exception:
+            continue
+
+
 def main() -> int:
     try:
+        log.info("Vocali v%s booting (frozen=%s, exe=%s)",
+                 VERSION, getattr(sys, "frozen", False), sys.executable)
         VocaliApp().run()
     except KeyboardInterrupt:
         return 0
+    except Exception as exc:
+        log.error("Fatal startup error", exc_info=True)
+        _write_startup_error(exc)
+        return 1
     return 0
 
 

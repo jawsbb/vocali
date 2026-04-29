@@ -10,11 +10,29 @@ This project uses semantic versioning for public releases. Use `MAJOR.MINOR.PATC
 - `MINOR` changes add user-visible features and improvements.
 - `PATCH` changes fix bugs, polish existing behavior, or make small internal improvements.
 
-## [0.4.0] - Unreleased
+## [0.4.1] - Unreleased
+
+### Added
+
+- Windows: rotating log file at `%LOCALAPPDATA%\Vocali\vocali.log` (keeps the last ~1.5 MB of session logs). Lets you diagnose silent failures in the windowed `.exe` build.
+- Windows: top-level startup-exception catcher that writes a full traceback to `%LOCALAPPDATA%\Vocali\vocali.startup_error.log` if booting crashes before the tray comes up.
+- Windows: `py build.py --debug` produces a console-mode `.exe` so import errors and COM init failures are visible at runtime.
+
+### Changed
+
+- Windows: heavy imports now run after logging is configured so any `ImportError` is captured to the log file instead of disappearing into the windowed launcher's discarded stderr.
+
+## [0.4.0] - 2026-04-29
 
 ### Added
 
 - Windows port (`windows/`): standalone Python implementation with system tray, global hotkeys, Groq Whisper transcription, LLM cleanup, custom vocabulary, and secure API-key storage in Windows Credential Manager.
+- Windows: Edit Mode (`Ctrl+Shift+Space` by default) to transform highlighted text by voice.
+- Windows: floating recording overlay.
+- Windows: UI Automation accessibility-tree context for the cleanup model.
+- Windows: run-on-login via the per-user `Run` registry key.
+- Windows: auto-update against GitHub Releases.
+- Windows: PyInstaller build (`Vocali.exe`, single file) plus a parallel CI job that publishes it to each release tag.
 
 ### Changed
 

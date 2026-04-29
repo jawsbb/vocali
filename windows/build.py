@@ -3,13 +3,19 @@
 Usage:
     py -m pip install -r requirements.txt
     py -m pip install -r requirements-build.txt
-    py build.py
+    py build.py            # production: --windowed (no console)
+    py build.py --debug    # diagnostic: --console (stdout/stderr visible)
 
 Output: ``windows/dist/Vocali.exe``
+
+Use the debug build when troubleshooting "the .exe runs but nothing
+happens" — the console will show import errors, COM init failures,
+and any other startup exception that the windowed launcher swallows.
 """
 
 from __future__ import annotations
 
+import argparse
 import shutil
 import subprocess
 import sys
@@ -75,6 +81,14 @@ def _generate_version_file(version: str) -> Path:
 
 
 def main() -> int:
+    parser = argparse.ArgumentParser(description="Build Vocali.exe with PyInstaller.")
+    parser.add_argument(
+        "--debug",
+        action="store_true",
+        help="Build with --console instead of --windowed for live error output.",
+    )
+    args = parser.parse_args()
+
     if sys.platform != "win32":
         print("build.py must run on Windows.", file=sys.stderr)
         return 1
@@ -91,7 +105,8 @@ def main() -> int:
                 path.unlink()
 
     version = _read_version()
-    print(f"Building Vocali v{version}…")
+    mode = "DEBUG (console)" if args.debug else "release (windowed)"
+    print(f"Building Vocali v{version} — {mode}…")
     version_file = _generate_version_file(version)
 
     cmd: list[str] = [
@@ -100,7 +115,7 @@ def main() -> int:
         "--clean",
         "--name", "Vocali",
         "--onefile",
-        "--windowed",  # no console window on launch
+        "--console" if args.debug else "--windowed",
         "--distpath", str(DIST),
         "--workpath", str(BUILD),
         "--specpath", str(HERE),
@@ -124,6 +139,8 @@ def main() -> int:
     out = DIST / "Vocali.exe"
     if out.exists():
         print(f"\nBuilt {out} ({out.stat().st_size / (1024*1024):.1f} MB)")
+        if args.debug:
+            print("Debug build: run from a terminal (cmd, PowerShell) to see live output.")
     else:
         print("PyInstaller finished but Vocali.exe was not produced.", file=sys.stderr)
         return 1
