@@ -34,6 +34,10 @@ class SettingsWindow:
         self._cleanup_var = tk.BooleanVar(value=settings.cleanup_enabled)
         self._hold_var = tk.StringVar(value=settings.hold_shortcut)
         self._toggle_var = tk.StringVar(value=settings.toggle_shortcut)
+        self._edit_var = tk.StringVar(value=settings.edit_shortcut)
+        self._edit_enabled_var = tk.BooleanVar(value=settings.edit_mode_enabled)
+        self._show_overlay_var = tk.BooleanVar(value=settings.show_overlay)
+        self._use_context_var = tk.BooleanVar(value=settings.use_window_context)
 
         self._build()
 
@@ -64,6 +68,19 @@ class SettingsWindow:
         self._row(cleanup_frame, 1, "Primary LLM model", self._primary_model_var, width=40)
         self._row(cleanup_frame, 2, "Fallback LLM model", self._fallback_model_var, width=40)
         self._row(cleanup_frame, 3, "Output language (optional)", self._output_language_var, width=20)
+        ttk.Checkbutton(
+            cleanup_frame,
+            text="Send foreground window title as context to the cleanup model",
+            variable=self._use_context_var,
+        ).grid(row=4, column=0, sticky="w", padx=8, pady=6, columnspan=2)
+
+        ui_frame = ttk.LabelFrame(general, text="UI")
+        ui_frame.grid(row=5, column=0, columnspan=3, sticky="ew", padx=12, pady=10)
+        ttk.Checkbutton(
+            ui_frame,
+            text="Show floating recording overlay",
+            variable=self._show_overlay_var,
+        ).grid(row=0, column=0, sticky="w", padx=8, pady=6)
 
         general.columnconfigure(1, weight=1)
 
@@ -80,6 +97,24 @@ class SettingsWindow:
         ).grid(row=0, column=0, columnspan=2, sticky="w", padx=12, pady=(12, 6))
         self._row(sc, 1, "Hold-to-talk shortcut", self._hold_var, width=30)
         self._row(sc, 2, "Toggle dictation shortcut", self._toggle_var, width=30)
+
+        edit_frame = ttk.LabelFrame(sc, text="Edit Mode")
+        edit_frame.grid(row=3, column=0, columnspan=2, sticky="ew", padx=12, pady=10)
+        ttk.Checkbutton(
+            edit_frame,
+            text="Enable Edit Mode (transform highlighted text by voice)",
+            variable=self._edit_enabled_var,
+        ).grid(row=0, column=0, sticky="w", padx=8, pady=6, columnspan=2)
+        ttk.Label(
+            edit_frame,
+            text=(
+                "Hold the Edit shortcut, speak the transformation\n"
+                '("make this shorter", "translate to French"), and release.'
+            ),
+            foreground="#555",
+        ).grid(row=1, column=0, columnspan=2, sticky="w", padx=12, pady=(0, 6))
+        self._row(edit_frame, 2, "Edit Mode shortcut", self._edit_var, width=30)
+        edit_frame.columnconfigure(1, weight=1)
         sc.columnconfigure(1, weight=1)
 
         # --- Vocabulary tab ---
@@ -135,6 +170,10 @@ class SettingsWindow:
         s.cleanup_enabled = bool(self._cleanup_var.get())
         s.hold_shortcut = self._hold_var.get().strip() or "right alt"
         s.toggle_shortcut = self._toggle_var.get().strip()
+        s.edit_shortcut = self._edit_var.get().strip()
+        s.edit_mode_enabled = bool(self._edit_enabled_var.get())
+        s.show_overlay = bool(self._show_overlay_var.get())
+        s.use_window_context = bool(self._use_context_var.get())
         s.custom_vocabulary = self._vocab_text.get("1.0", "end").strip()
         s.custom_system_prompt = self._prompt_text.get("1.0", "end").strip()
         try:

@@ -76,14 +76,21 @@ class HotkeyManager:
         on_hold_start: Callable[[], None],
         on_hold_end: Callable[[], None],
         on_toggle: Callable[[], None] | None = None,
+        edit_combo: str | None = None,
+        on_edit_start: Callable[[], None] | None = None,
+        on_edit_end: Callable[[], None] | None = None,
     ) -> None:
         self._hold = _parse(hold_combo)
         self._toggle = _parse(toggle_combo) if toggle_combo else tuple()
+        self._edit = _parse(edit_combo) if edit_combo else tuple()
         self._on_hold_start = on_hold_start
         self._on_hold_end = on_hold_end
         self._on_toggle = on_toggle
+        self._on_edit_start = on_edit_start
+        self._on_edit_end = on_edit_end
         self._pressed: set[str] = set()
         self._holding = False
+        self._editing = False
         self._toggle_armed = False
         self._lock = threading.Lock()
         self._hook = None
@@ -105,12 +112,21 @@ class HotkeyManager:
             if self._holding:
                 self._holding = False
                 _safe_call(self._on_hold_end)
+            if self._editing:
+                self._editing = False
+                _safe_call(self._on_edit_end)
 
-    def update(self, hold_combo: str, toggle_combo: str | None) -> None:
+    def update(
+        self,
+        hold_combo: str,
+        toggle_combo: str | None,
+        edit_combo: str | None = None,
+    ) -> None:
         was_running = self._hook is not None
         self.stop()
         self._hold = _parse(hold_combo)
         self._toggle = _parse(toggle_combo) if toggle_combo else tuple()
+        self._edit = _parse(edit_combo) if edit_combo else tuple()
         if was_running:
             self.start()
 
@@ -127,6 +143,23 @@ class HotkeyManager:
                 self._pressed.add(name)
             else:
                 self._pressed.discard(name)
+
+            # Edit Mode is checked before the regular hold combo so that an
+            # edit shortcut that shares modifiers with the hold shortcut
+            # (e.g. hold = "right alt", edit = "ctrl+shift+space") wins.
+            if self._edit and self._on_edit_start:
+                edit_now = _all_satisfied(self._edit, self._pressed)
+                if edit_now and not self._editing and not self._holding:
+                    self._editing = True
+                    self._toggle_armed = False
+                    _safe_call(self._on_edit_start)
+                    return
+                if not edit_now and self._editing:
+                    self._editing = False
+                    _safe_call(self._on_edit_end)
+                    return
+                if self._editing:
+                    return
 
             hold_now = _all_satisfied(self._hold, self._pressed)
             if hold_now and not self._holding:

@@ -43,6 +43,10 @@ class Settings:
     custom_system_prompt: str = ""
     hold_shortcut: str = "right alt"
     toggle_shortcut: str = "ctrl+right alt"
+    edit_shortcut: str = "ctrl+shift+space"
+    edit_mode_enabled: bool = True
+    show_overlay: bool = True
+    use_window_context: bool = True
     play_sounds: bool = False
     extra: dict = field(default_factory=dict)
 

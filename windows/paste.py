@@ -36,6 +36,7 @@ VK_LWIN = 0x5B
 VK_RWIN = 0x5C
 VK_CONTROL = 0x11
 VK_V = 0x56
+VK_C = 0x43
 
 
 class _KEYBDINPUT(ctypes.Structure):
@@ -126,3 +127,58 @@ def paste_text(text: str) -> None:
         _key_event(VK_V, True),
         _key_event(VK_CONTROL, True),
     ])
+
+
+def _read_clipboard() -> str:
+    try:
+        return pyperclip.paste() or ""
+    except pyperclip.PyperclipException:
+        return ""
+
+
+def copy_selection(timeout_ms: int = 300) -> tuple[str, str]:
+    """Capture the current foreground-window selection via Ctrl+C.
+
+    Returns `(selection, original_clipboard)`. Selection is empty if nothing
+    was selected (or the foreground app didn't honor Ctrl+C). Caller is
+    expected to call `restore_clipboard(original_clipboard)` when finished.
+    """
+    original = _read_clipboard()
+
+    # Use a sentinel so we can detect "no change" even if the original
+    # clipboard text matches the current selection.
+    sentinel = "\x00__vocali_edit_mode_sentinel__\x00"
+    try:
+        pyperclip.copy(sentinel)
+    except pyperclip.PyperclipException:
+        return "", original
+
+    _release_user_modifiers()
+    time.sleep(0.01)
+    _send([
+        _key_event(VK_CONTROL, False),
+        _key_event(VK_C, False),
+        _key_event(VK_C, True),
+        _key_event(VK_CONTROL, True),
+    ])
+
+    deadline = time.monotonic() + (timeout_ms / 1000.0)
+    selection = ""
+    while time.monotonic() < deadline:
+        time.sleep(0.02)
+        current = _read_clipboard()
+        if current and current != sentinel:
+            selection = current
+            break
+
+    return selection, original
+
+
+def restore_clipboard(text: str) -> None:
+    try:
+        if text:
+            pyperclip.copy(text)
+        else:
+            pyperclip.copy("")
+    except pyperclip.PyperclipException:
+        pass
