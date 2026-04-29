@@ -2,7 +2,7 @@ import AppKit
 import SwiftUI
 
 @main
-struct FreeFlowApp: App {
+struct VocaliApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
     @AppStorage("show_menu_bar_icon") private var showMenuBarIcon = true
 
@@ -21,7 +21,7 @@ struct MenuBarLabel: View {
     @EnvironmentObject var appState: AppState
 
     private var isDevBundle: Bool {
-        (Bundle.main.object(forInfoDictionaryKey: "CFBundleName") as? String) == "FreeFlow Dev"
+        (Bundle.main.object(forInfoDictionaryKey: "CFBundleName") as? String) == "Vocali Dev"
     }
 
     private var iconName: String {

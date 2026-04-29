@@ -167,7 +167,7 @@ final class UpdateManager: ObservableObject {
         set { UserDefaults.standard.set(newValue, forKey: "updateLastPostTranscriptionReminderDate") }
     }
 
-    private let releasesURL = URL(string: "https://api.github.com/repos/zachlatta/freeflow/releases?per_page=100")!
+    private let releasesURL = URL(string: "https://api.github.com/repos/jawsbb/vocali/releases?per_page=100")!
     private let stabilityBufferDays: TimeInterval = 3
     private let checkIntervalSeconds: TimeInterval = 7 * 24 * 60 * 60 // 7 days
     private let postTranscriptionReminderInterval: TimeInterval = 24 * 60 * 60 // 1 day
@@ -212,7 +212,7 @@ final class UpdateManager: ObservableObject {
     // MARK: - Check for Updates
 
     func checkForUpdates(userInitiated: Bool) async {
-        let currentBuildTag = Bundle.main.infoDictionary?["FreeFlowBuildTag"] as? String
+        let currentBuildTag = Bundle.main.infoDictionary?["VocaliBuildTag"] as? String
         let currentVersionString = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "0.0.0"
 
         // Dev builds (no embedded tag): skip auto-checks, but allow manual checks
@@ -713,7 +713,7 @@ final class UpdateManager: ObservableObject {
 
     private func performUpdate(downloadURL: URL, expectedSize: Int) async {
         let fm = FileManager.default
-        let tempDir = fm.temporaryDirectory.appendingPathComponent("freeflow-update-\(UUID().uuidString)")
+        let tempDir = fm.temporaryDirectory.appendingPathComponent("vocali-update-\(UUID().uuidString)")
 
         do {
             try fm.createDirectory(at: tempDir, withIntermediateDirectories: true)
@@ -722,7 +722,7 @@ final class UpdateManager: ObservableObject {
             return
         }
 
-        let dmgPath = tempDir.appendingPathComponent("FreeFlow.dmg")
+        let dmgPath = tempDir.appendingPathComponent("Vocali.dmg")
 
         // MARK: Download phase
         updateStatus = .downloading
@@ -824,7 +824,7 @@ final class UpdateManager: ObservableObject {
             }
 
             // Copy app to staging directory
-            let stagingDir = fm.temporaryDirectory.appendingPathComponent("freeflow-staged-\(UUID().uuidString)")
+            let stagingDir = fm.temporaryDirectory.appendingPathComponent("vocali-staged-\(UUID().uuidString)")
             try fm.createDirectory(at: stagingDir, withIntermediateDirectories: true)
             let stagedApp = stagingDir.appendingPathComponent(appBundle.lastPathComponent)
             try fm.copyItem(at: appBundle, to: stagedApp)

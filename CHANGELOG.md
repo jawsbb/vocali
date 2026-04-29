@@ -1,6 +1,8 @@
 # Changelog
 
-All notable changes to FreeFlow are documented here.
+All notable changes to Vocali are documented here.
+
+Vocali is a fork of [FreeFlow](https://github.com/zachlatta/freeflow). The history below up to `0.3.3` is inherited from upstream FreeFlow; entries from `0.4.0` onward are Vocali changes.
 
 This project uses semantic versioning for public releases. Use `MAJOR.MINOR.PATCH`, where:
 
@@ -8,14 +10,24 @@ This project uses semantic versioning for public releases. Use `MAJOR.MINOR.PATC
 - `MINOR` changes add user-visible features and improvements.
 - `PATCH` changes fix bugs, polish existing behavior, or make small internal improvements.
 
+## [0.4.0] - Unreleased
+
+### Added
+
+- Windows port (`windows/`): standalone Python implementation with system tray, global hotkeys, Groq Whisper transcription, LLM cleanup, custom vocabulary, and secure API-key storage in Windows Credential Manager.
+
+### Changed
+
+- Project renamed from FreeFlow to Vocali.
+
 ## [0.3.3] - 2026-04-25
 
 ### Added
 
 - Output Language setting for automatically translating dictated text before it is pasted.
-- Transcription Language setting for choosing the language FreeFlow listens for during dictation.
-- Recording state flag file for external tools that need to know when FreeFlow is actively recording.
-- Distinct FreeFlow Dev app and menu bar icons so development builds are easier to tell apart from release builds.
+- Transcription Language setting for choosing the language Vocali listens for during dictation.
+- Recording state flag file for external tools that need to know when Vocali is actively recording.
+- Distinct Vocali Dev app and menu bar icons so development builds are easier to tell apart from release builds.
 
 ### Improved
 
@@ -26,7 +38,7 @@ This project uses semantic versioning for public releases. Use `MAJOR.MINOR.PATC
 ### Fixed
 
 - Fixed audio recording crashes caused by unexpected input formats, resampling, and upload-path conversion.
-- Fixed cases where FreeFlow could silently fall back when the selected microphone was unavailable.
+- Fixed cases where Vocali could silently fall back when the selected microphone was unavailable.
 - Fixed paste shortcuts on Colemak-DH and other non-QWERTY keyboard layouts.
 - Fixed output language handling when custom system prompts are enabled.
 
@@ -47,7 +59,7 @@ This project uses semantic versioning for public releases. Use `MAJOR.MINOR.PATC
 - A voice command for submitting text: say "press enter" at the end of a dictation.
 - Audio controls that can mute or pause other audio while you dictate, then restore it when recording stops.
 - Build details in Settings for easier troubleshooting.
-- Direct shortcuts from FreeFlow to the right macOS permission settings.
+- Direct shortcuts from Vocali to the right macOS permission settings.
 - A What’s New popup when an update is available.
 
 ### Improved
@@ -57,9 +69,9 @@ This project uses semantic versioning for public releases. Use `MAJOR.MINOR.PATC
 - Exported run logs include more useful context for reproducing issues.
 - Realtime transcription is more reliable when recordings are cancelled, retried, or finish with no text.
 - Provider settings are easier to edit without accidental whitespace or half-saved values.
-- FreeFlow now warns you if alert sounds may be hard to hear because system audio is muted or very low.
+- Vocali now warns you if alert sounds may be hard to hear because system audio is muted or very low.
 - Update prompts now show the version, release date, and release notes more clearly.
-- FreeFlow now uses proper version numbers for updates instead of internal build names.
+- Vocali now uses proper version numbers for updates instead of internal build names.
 
 ### Fixed
 

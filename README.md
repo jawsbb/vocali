@@ -1,52 +1,81 @@
 <p align="center">
-  <img src="Resources/AppIcon-Source.png" width="128" height="128" alt="FreeFlow icon">
+  <img src="Resources/AppIcon-Source.png" width="128" height="128" alt="Vocali icon">
 </p>
 
-<h1 align="center">FreeFlow</h1>
+<h1 align="center">Vocali</h1>
 
 <p align="center">
-  Free and open source alternative to <a href="https://wisprflow.ai">Wispr Flow</a>, <a href="https://superwhisper.com">Superwhisper</a>, and <a href="https://monologue.to">Monologue</a>.
+  Free and open source dictation app for <b>macOS and Windows</b>.<br>
+  Inspired by <a href="https://wisprflow.ai">Wispr Flow</a>, <a href="https://superwhisper.com">Superwhisper</a>, and <a href="https://monologue.to">Monologue</a>.
 </p>
 
 <p align="center">
-  <a href="https://github.com/zachlatta/freeflow/releases/latest/download/FreeFlow.dmg"><b>⬇ Download FreeFlow.dmg</b></a><br>
-  <sub>Works on all Macs (Apple Silicon + Intel)</sub>
+  <i>Fork of <a href="https://github.com/zachlatta/freeflow">FreeFlow</a> by <a href="https://github.com/zachlatta">Zach Latta</a>, with a Windows port added.</i>
 </p>
 
 ---
 
-<p align="center">
-  <img src="Resources/demo.gif" alt="FreeFlow demo" width="600">
-</p>
-
-<p align="center">
-  <i>Thank you to <a href="https://github.com/marcbodea">@marcbodea</a> for maintaining FreeFlow!</i>
-</p>
-
 ## Overview
 
-FreeFlow is a free Mac dictation app inspired by [Wispr Flow](https://wisprflow.ai/), [Superwhisper](https://superwhisper.com/), and [Monologue](https://www.monologue.to/). It gives you fast AI transcription, context-aware cleanup, and voice-driven text editing without a monthly subscription.
+Vocali is a free dictation app. Hold a hotkey, talk, release — your speech is transcribed by Groq Whisper and (optionally) cleaned up by an LLM, then pasted into the focused text field.
 
-## Quick Start
+It runs as a tray / menu bar app on both macOS and Windows. There is no Vocali server: the only data leaving your computer are API calls to your configured transcription and LLM provider.
 
-1. Download the app from above or [click here](https://github.com/zachlatta/freeflow/releases/latest/download/FreeFlow.dmg)
-2. Get a free Groq API key from [groq.com](https://groq.com/)
-3. Hold `Fn` to talk, or tap `Command-Fn` to start and stop dictation, and have whatever you say pasted into the current text field
+## Quick start
+
+You'll need a free Groq API key from [console.groq.com](https://console.groq.com/keys).
+
+### macOS
+
+Build from source (Swift, native menu-bar app):
+
+```bash
+make run
+```
+
+See [Building macOS](#building-macos) for details, signing, and DMG packaging.
+
+Default shortcuts on macOS: hold **`Fn`** to talk, or tap **`⌘-Fn`** to toggle.
+
+### Windows
+
+The Windows version is a separate from-scratch port written in Python. Lives in [`windows/`](windows/).
+
+```powershell
+cd windows
+py -m pip install -r requirements.txt
+py vocali.py
+```
+
+A waveform icon appears in the system tray. Right-click → **Settings** to paste your Groq API key.
+
+Default shortcuts on Windows: hold **`Right Alt`** to talk, or tap **`Ctrl + Right Alt`** to toggle. (`Fn` cannot be intercepted on most Windows keyboards.)
+
+See [`windows/README.md`](windows/README.md) for details.
 
 ## Features
 
-- **Custom shortcuts:** Customize both hold-to-talk and toggle dictation shortcuts. If your toggle shortcut extends your hold shortcut, you can start in hold mode and press the extra modifier keys to latch into tap mode without stopping the recording.
-- **Context-aware cleanup:** FreeFlow can read nearby app context so names, terms, and phrases are spelled correctly when you dictate into email, terminals, docs, and other apps.
-- **Custom vocabulary:** Add names, jargon, and project-specific words that FreeFlow should preserve during cleanup.
-- **OpenAI-compatible providers:** Use Groq by default, or configure a custom model and API URL in settings.
+- **Custom shortcuts** — customize both hold-to-talk and toggle dictation shortcuts.
+- **Custom vocabulary** — add names, jargon, project-specific words to preserve during cleanup.
+- **Context-aware cleanup** *(macOS only for now)* — reads nearby app context so names and terms are spelled correctly when you dictate into email, terminals, docs, etc.
+- **Edit Mode** *(macOS only for now)* — highlight text, hold the shortcut, and say "make this shorter" / "turn this into bullets" to transform it.
+- **OpenAI-compatible providers** — use Groq by default, or configure a custom model and API URL in settings.
 
-## Edit Mode
-
-Edit Mode lets you highlight existing text and transform it with a spoken instruction, like "make this shorter" or "turn this into bullets." Enable it in settings, then use your normal dictation shortcut on selected text, or choose Manual mode to require an extra modifier key.
+Windows parity: hotkeys, transcription, LLM cleanup, vocabulary, custom prompt and tray UI are all in. Context-aware cleanup, Edit Mode and a recording overlay are not yet ported.
 
 ## Privacy
 
-There is no FreeFlow server, so FreeFlow does not store or retain your data. The only information that leaves your computer are API calls to your configured transcription and LLM provider.
+Vocali does not have a server. The only outbound traffic is API calls to your transcription and LLM provider (Groq by default). API keys are stored in the system keychain (macOS Keychain / Windows Credential Manager), never in plain text.
+
+## Building macOS
+
+```bash
+make run                          # build a Dev bundle and launch it
+make all APP_NAME=Vocali           # build the release bundle
+make dmg APP_NAME=Vocali           # produce a DMG
+```
+
+Set `CODESIGN_IDENTITY` to your Developer ID for signed builds. The release workflow in [`.github/workflows/release.yml`](.github/workflows/release.yml) handles signing, notarization, and DMG upload when you push a `v*.*.*` tag.
 
 ## Custom Cleanup
 
@@ -67,27 +96,15 @@ Output rules:
 - Return ONLY the cleaned transcript text, nothing else. So NEVER output words like "Here is the cleaned transcript text:"
 - If the transcription is empty, return exactly: EMPTY
 - Do not add words, names, or content that are not in the transcription. The context is only for correcting spelling of words already spoken.
-- Do not change the meaning of what was said.
-
-Example:
-RAW_TRANSCRIPTION: "hey um so i just wanted to like follow up on the meating from yesterday i think we should definately move the dedline to next friday becuz the desine team still needs more time to finish the mock ups and um yeah let me know if that works for you ok thanks"
-
-Then your response would be ONLY the cleaned up text, so here your response is ONLY:
-"Hey, I just wanted to follow up on the meeting from yesterday. I think we should definitely move the deadline to next Friday because the design team still needs more time to finish the mockups. Let me know if that works for you. Thanks."</code></pre>
+- Do not change the meaning of what was said.</code></pre>
 </details>
 
-## FAQ
+## Credits
 
-**Why does this use Groq instead of a local transcription model?**
+Vocali is a fork of [FreeFlow](https://github.com/zachlatta/freeflow) by [Zach Latta](https://github.com/zachlatta), with a Windows port added by [Jules Koehler](https://github.com/jawsbb).
 
-I love this idea, and originally planned to build FreeFlow using local models, but to have post-processing (that's where you get correctly spelled names when replying to emails / etc), you need to have a local LLM too.
-
-If you do that, the total pipeline takes too long for the UX to be good (5-10 seconds per transcription instead of <1s). I also had concerns around battery life.
-
-Some day!
-
-**Update:** You can now use a custom model with FreeFlow by configuring the LLM API URL in the FreeFlow settings to use Ollama. Thank you @taciturnaxolotl!
+Original FreeFlow contributors are credited in the upstream repo. The macOS app source code in [`Sources/`](Sources/) is the FreeFlow Swift codebase with rebranding.
 
 ## License
 
-Licensed under the MIT license.
+MIT — see [LICENSE](LICENSE). Original FreeFlow copyright is preserved.

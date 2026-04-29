@@ -1,0 +1,4 @@
+interface:
+  display_name: "Vocali Release"
+  short_description: "Prepare and publish Vocali semver releases."
+  default_prompt: "Prepare a new Vocali release."
