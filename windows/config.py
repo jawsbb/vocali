@@ -48,6 +48,7 @@ class Settings:
     show_overlay: bool = True
     use_window_context: bool = True
     auto_start: bool = False
+    check_updates: bool = True
     play_sounds: bool = False
     extra: dict = field(default_factory=dict)
 

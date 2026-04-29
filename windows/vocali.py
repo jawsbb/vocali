@@ -18,6 +18,7 @@ import sys
 import threading
 import time
 import traceback
+import webbrowser
 from enum import Enum
 
 from PIL import Image, ImageDraw
@@ -27,11 +28,13 @@ import config
 import context_provider
 import postprocessing
 import transcription
+import updater
 from audio_recorder import AudioRecorder
 from hotkeys import HotkeyManager
 from paste import copy_selection, paste_text, restore_clipboard
 from recording_overlay import RecordingOverlay
 from settings_ui import SettingsWindow
+from version import VERSION
 
 
 logging.basicConfig(
@@ -79,6 +82,9 @@ class VocaliApp:
         if self._settings.show_overlay:
             self._overlay = RecordingOverlay()
 
+        self._update_info: updater.UpdateInfo | None = None
+        self._update_check_lock = threading.Lock()
+
         self._hotkeys = HotkeyManager(
             hold_combo=self._settings.hold_shortcut,
             toggle_combo=self._settings.toggle_shortcut or None,
@@ -105,17 +111,22 @@ class VocaliApp:
             self._tray = pystray.Icon(
                 "vocali",
                 self._make_icon(State.IDLE),
-                "Vocali",
+                self._tray_title(),
                 menu=self._make_menu(),
             )
             log.info(
-                "Vocali started. Hold [%s] dictation, toggle [%s], edit [%s].",
+                "Vocali v%s started. Hold [%s] dictation, toggle [%s], edit [%s].",
+                VERSION,
                 self._settings.hold_shortcut,
                 self._settings.toggle_shortcut or "none",
                 self._edit_combo() or "off",
             )
             if not config.get_api_key():
                 log.warning("No API key set yet — open Settings from the tray to add one.")
+            if self._settings.check_updates:
+                # Defer the network call so app startup feels instant.
+                threading.Timer(20.0, self._check_for_updates_async,
+                                kwargs={"silent": True}).start()
             self._tray.run()
         finally:
             self._hotkeys.stop()
@@ -147,13 +158,87 @@ class VocaliApp:
                 d.rectangle((x, y, x + w, y + h), fill=color)
         return img
 
+    def _tray_title(self) -> str:
+        if self._update_info is not None:
+            return f"Vocali v{VERSION} — update v{self._update_info.version} available"
+        return f"Vocali v{VERSION}"
+
     def _make_menu(self) -> pystray.Menu:
-        return pystray.Menu(
-            pystray.MenuItem("Settings…", self._open_settings),
-            pystray.MenuItem("Status: idle", lambda: None, enabled=False),
-            pystray.Menu.SEPARATOR,
-            pystray.MenuItem("Quit", self._quit),
-        )
+        items: list = [pystray.MenuItem("Settings…", self._open_settings)]
+        if self._update_info is not None:
+            items.append(pystray.MenuItem(
+                f"Update to v{self._update_info.version}",
+                self._open_update_page,
+            ))
+        items.append(pystray.MenuItem(f"Vocali v{VERSION}", lambda: None, enabled=False))
+        items.append(pystray.Menu.SEPARATOR)
+        items.append(pystray.MenuItem(
+            "Check for updates…",
+            self._on_check_for_updates_clicked,
+        ))
+        items.append(pystray.MenuItem("Quit", self._quit))
+        return pystray.Menu(*items)
+
+    def _refresh_tray(self) -> None:
+        if self._tray is None:
+            return
+        self._tray.title = self._tray_title()
+        self._tray.menu = self._make_menu()
+        try:
+            self._tray.update_menu()
+        except Exception:
+            pass
+
+    def _open_update_page(self, icon=None, item=None) -> None:  # noqa: ARG002
+        info = self._update_info
+        if info is None or not info.html_url:
+            return
+        try:
+            webbrowser.open(info.html_url)
+        except Exception:
+            log.error("Failed to open release page: %s", info.html_url)
+
+    def _on_check_for_updates_clicked(self, icon=None, item=None) -> None:  # noqa: ARG002
+        threading.Thread(
+            target=self._check_for_updates_async,
+            kwargs={"silent": False},
+            daemon=True,
+        ).start()
+
+    def _check_for_updates_async(self, silent: bool = True) -> None:
+        # Coalesce concurrent checks so menu spam doesn't fire N requests.
+        if not self._update_check_lock.acquire(blocking=False):
+            return
+        try:
+            log.info("Checking for updates… (current v%s)", VERSION)
+            info = updater.check_for_update(VERSION)
+            self._update_info = info
+            if info is not None:
+                log.info("Update available: v%s — %s", info.version, info.html_url)
+                self._notify_update(info)
+            else:
+                log.info("No update available.")
+                if not silent and self._tray is not None:
+                    try:
+                        self._tray.notify("Vocali", f"You're on the latest version (v{VERSION}).")
+                    except Exception:
+                        pass
+            self._refresh_tray()
+        finally:
+            self._update_check_lock.release()
+
+    def _notify_update(self, info: updater.UpdateInfo) -> None:
+        if self._tray is None:
+            return
+        try:
+            self._tray.notify(
+                f"Vocali v{info.version} available",
+                f"Click the tray icon → Update to v{info.version}.",
+            )
+        except Exception:
+            # pystray's notify can fail on some Windows configurations; the
+            # menu item is still visible so the user can find it manually.
+            pass
 
     def _open_settings(self, icon=None, item=None) -> None:  # noqa: ARG002
         # tkinter wants its own thread because pystray owns the main thread.

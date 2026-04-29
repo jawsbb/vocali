@@ -43,6 +43,7 @@ class SettingsWindow:
         # settings.json — the user can toggle the registry independently
         # (msconfig, Task Manager, etc.) and we want the UI to reflect that.
         self._auto_start_var = tk.BooleanVar(value=auto_start.is_enabled())
+        self._check_updates_var = tk.BooleanVar(value=settings.check_updates)
 
         self._build()
 
@@ -93,6 +94,14 @@ class SettingsWindow:
             startup_frame,
             text="Start Vocali automatically when I sign in to Windows",
             variable=self._auto_start_var,
+        ).grid(row=0, column=0, sticky="w", padx=8, pady=6)
+
+        updates_frame = ttk.LabelFrame(general, text="Updates")
+        updates_frame.grid(row=7, column=0, columnspan=3, sticky="ew", padx=12, pady=10)
+        ttk.Checkbutton(
+            updates_frame,
+            text="Check GitHub for new versions on startup",
+            variable=self._check_updates_var,
         ).grid(row=0, column=0, sticky="w", padx=8, pady=6)
 
         general.columnconfigure(1, weight=1)
@@ -188,6 +197,7 @@ class SettingsWindow:
         s.show_overlay = bool(self._show_overlay_var.get())
         s.use_window_context = bool(self._use_context_var.get())
         s.auto_start = bool(self._auto_start_var.get())
+        s.check_updates = bool(self._check_updates_var.get())
         s.custom_vocabulary = self._vocab_text.get("1.0", "end").strip()
         s.custom_system_prompt = self._prompt_text.get("1.0", "end").strip()
         try:

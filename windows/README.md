@@ -38,6 +38,14 @@ Open Settings → tick **Start Vocali automatically when I sign in to Windows** 
 
 This writes a value under `HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Run` (per-user, no admin needed). When running from source, it points at `pythonw.exe` (no console window flashes on login). When running from the bundled `.exe`, it points at the `.exe` directly. Untick to remove.
 
+## Updates
+
+Vocali checks GitHub Releases for a newer version 20 seconds after startup (toggle off in Settings → Updates). If one is available you'll see an "Update to vX.Y.Z" item in the tray menu — clicking it opens the GitHub release page so you can download the new `Vocali.exe`. The tray menu also has **Check for updates…** for an on-demand check.
+
+The current version is in [`version.py`](version.py); bump it before tagging a release.
+
+This is a check-and-notify updater — Vocali does not auto-replace the running `.exe` (Windows holds the file open while the process runs, so an in-place swap needs a separate helper process; not worth the complexity for now).
+
 ## How dictation works
 
 1. You hold the hotkey and speak.
@@ -83,8 +91,8 @@ This is a from-scratch port — it does not share code with the Swift app. Parit
 - [x] **Lightweight foreground-window context** (title + executable name)
 - [x] **Run on login** (per-user `Run` registry key)
 - [x] **Single-file `.exe` distribution** (PyInstaller)
+- [x] **Auto-update** — checks GitHub Releases on startup, surfaces updates in the tray menu
 - [ ] Full UI Automation context (full app accessibility tree) — Mac uses the macOS Accessibility API; Windows MVP only sends the window title
-- [ ] Auto-update — Mac checks GitHub releases via `UpdateManager.swift`; not yet on Windows
 
 ## Files
 
@@ -97,6 +105,8 @@ This is a from-scratch port — it does not share code with the Swift app. Parit
 - `context_provider.py` — foreground-window title/exe via Win32 GetForegroundWindow
 - `recording_overlay.py` — small floating Tk window shown while recording
 - `auto_start.py` — read/write the `HKCU\…\Run` registry value
+- `updater.py` — checks GitHub Releases for a newer version
+- `version.py` — single source of truth for the app version
 - `settings_ui.py` — Tkinter Settings dialog
 - `config.py` — JSON settings + Windows Credential Manager for API key
 - `build.py` — PyInstaller wrapper that produces `dist/Vocali.exe`

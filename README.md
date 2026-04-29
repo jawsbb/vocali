@@ -63,7 +63,7 @@ See [`windows/README.md`](windows/README.md) for details and build instructions.
 - **Edit Mode** *(macOS only for now)* — highlight text, hold the shortcut, and say "make this shorter" / "turn this into bullets" to transform it.
 - **OpenAI-compatible providers** — use Groq by default, or configure a custom model and API URL in settings.
 
-Windows parity: hotkeys, transcription, LLM cleanup, vocabulary, custom prompt, tray UI, **Edit Mode**, **recording overlay**, **lightweight foreground-window context**, **run-on-login**, and a **single-file `Vocali.exe` build** are all in. Full UI Automation context and auto-update are not yet ported.
+Windows parity: hotkeys, transcription, LLM cleanup, vocabulary, custom prompt, tray UI, **Edit Mode**, **recording overlay**, **lightweight foreground-window context**, **run-on-login**, **auto-update from GitHub Releases**, and a **single-file `Vocali.exe` build** are all in. Full UI Automation context (full app accessibility tree) is not yet ported.
 
 ## Privacy
 
