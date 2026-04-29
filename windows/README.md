@@ -92,7 +92,7 @@ This is a from-scratch port — it does not share code with the Swift app. Parit
 - [x] **Run on login** (per-user `Run` registry key)
 - [x] **Single-file `.exe` distribution** (PyInstaller)
 - [x] **Auto-update** — checks GitHub Releases on startup, surfaces updates in the tray menu
-- [ ] Full UI Automation context (full app accessibility tree) — Mac uses the macOS Accessibility API; Windows MVP only sends the window title
+- [x] **UI Automation context** — walks the focused app's accessibility tree to feed the cleanup model with surrounding text (recipient names, email subject, chat thread, IDE breadcrumbs). Captured in parallel with recording start so the user's first words aren't lost.
 
 ## Files
 

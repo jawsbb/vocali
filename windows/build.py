@@ -31,6 +31,8 @@ HIDDEN_IMPORTS = [
     "PIL._tkinter_finder",
     "keyring.backends.Windows",
     "win32timezone",  # pulled in by some keyring backends
+    "uiautomation",
+    "comtypes.gen",  # uiautomation generates COM stubs into here at runtime
 ]
 
 

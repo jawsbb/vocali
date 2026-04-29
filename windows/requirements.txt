@@ -6,3 +6,4 @@ pyperclip>=1.8.2
 pystray>=0.19.5
 Pillow>=10.0
 keyring>=24.0
+uiautomation>=2.0

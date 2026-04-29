@@ -13,6 +13,7 @@ Three pipelines share the same recorder:
 
 from __future__ import annotations
 
+import concurrent.futures
 import logging
 import sys
 import threading
@@ -37,10 +38,21 @@ from settings_ui import SettingsWindow
 from version import VERSION
 
 
+# Context capture can take ~100–800 ms (UI Automation walks the focused app's
+# accessibility tree). Run it on a dedicated worker so recording starts
+# immediately and we wait on the future only when we're about to call the LLM.
+CONTEXT_WAIT_TIMEOUT_S = 1.5
+
+
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s %(levelname)s %(message)s",
 )
+# `comtypes` and `uiautomation` log at INFO on every COM cache access; keep
+# them out of our stream.
+logging.getLogger("comtypes").setLevel(logging.WARNING)
+logging.getLogger("comtypes.client").setLevel(logging.WARNING)
+logging.getLogger("comtypes.client._code_cache").setLevel(logging.WARNING)
 log = logging.getLogger("vocali")
 
 
@@ -72,11 +84,15 @@ class VocaliApp:
         # Edit Mode session state (set during EDIT_RECORDING / TRANSCRIBING).
         self._edit_selection: str = ""
         self._edit_original_clipboard: str = ""
-        self._edit_context: str = ""
 
         # Captured at the moment recording starts so the cleanup prompt
         # references the *original* focused app, not Vocali's own windows.
-        self._captured_context: str = ""
+        # Future-based so the UIA walk runs in parallel with the recorder
+        # starting up — otherwise the user's first word is lost.
+        self._context_executor = concurrent.futures.ThreadPoolExecutor(
+            max_workers=1, thread_name_prefix="vocali-context"
+        )
+        self._captured_context_future: concurrent.futures.Future[str] | None = None
 
         self._overlay: RecordingOverlay | None = None
         if self._settings.show_overlay:
@@ -133,6 +149,7 @@ class VocaliApp:
             self._recorder.cancel()
             if self._overlay is not None:
                 self._overlay.stop()
+            self._context_executor.shutdown(wait=False, cancel_futures=True)
 
     def _quit(self, icon=None, item=None) -> None:  # noqa: ARG002
         if self._tray is not None:
@@ -308,18 +325,45 @@ class VocaliApp:
 
     # ---- regular dictation pipeline ----
 
-    def _capture_context(self) -> str:
+    def _start_context_capture(self) -> None:
+        """Submit context capture to the worker BEFORE recording starts.
+
+        Reading the foreground window must happen before the overlay shows
+        (otherwise GetForegroundWindow returns our overlay). The Win32
+        layer is fast (~5 ms) but UI Automation can take 100–800 ms — by
+        running the whole capture on the worker thread, the recorder gets
+        to start immediately and we wait on the future at LLM-call time.
+        """
         if not self._settings.use_window_context:
+            self._captured_context_future = None
+            return
+
+        def capture() -> str:
+            try:
+                return context_provider.context_summary()
+            except Exception:
+                return ""
+
+        self._captured_context_future = self._context_executor.submit(capture)
+
+    def _resolve_captured_context(self) -> str:
+        future = self._captured_context_future
+        self._captured_context_future = None
+        if future is None:
             return ""
         try:
-            return context_provider.context_summary()
+            return future.result(timeout=CONTEXT_WAIT_TIMEOUT_S)
+        except concurrent.futures.TimeoutError:
+            log.info("Context capture timed out; cleanup runs without it.")
+            future.cancel()
+            return ""
         except Exception:
             return ""
 
     def _begin_recording(self, via_toggle: bool) -> None:
-        # Capture context BEFORE we enter recording mode — once our overlay
+        # Capture context BEFORE entering recording mode — once our overlay
         # is shown, GetForegroundWindow may return our window instead.
-        self._captured_context = self._capture_context()
+        self._start_context_capture()
         try:
             self._recorder.start()
         except Exception as e:
@@ -340,13 +384,15 @@ class VocaliApp:
 
         if not wav_bytes:
             log.info("No audio captured.")
+            self._captured_context_future = None
             self._set_state(State.IDLE)
             return
 
+        ctx = self._resolve_captured_context()
         self._set_state(State.TRANSCRIBING)
         threading.Thread(
             target=self._process_audio,
-            args=(wav_bytes, self._captured_context),
+            args=(wav_bytes, ctx),
             daemon=True,
         ).start()
 
@@ -405,18 +451,20 @@ class VocaliApp:
     # ---- Edit Mode pipeline ----
 
     def _begin_edit_recording(self) -> None:
-        # Grab context + selection before recording starts.
-        self._edit_context = self._capture_context()
+        # Kick off context capture in parallel — see _start_context_capture.
+        self._start_context_capture()
         try:
             selection, original = copy_selection()
         except Exception as e:
             log.error("Failed to read selection for Edit Mode: %s", e)
+            self._captured_context_future = None
             return
 
         if not selection.strip():
             log.info("Edit Mode: no selection detected, ignoring.")
             # Restore whatever the user had on their clipboard before our probe.
             restore_clipboard(original)
+            self._captured_context_future = None
             return
 
         self._edit_selection = selection
@@ -427,6 +475,7 @@ class VocaliApp:
         except Exception as e:
             log.error("Failed to start recording for Edit Mode: %s", e)
             restore_clipboard(original)
+            self._captured_context_future = None
             return
 
         self._set_state(State.EDIT_RECORDING)
@@ -437,21 +486,23 @@ class VocaliApp:
             wav_bytes = self._recorder.stop()
         except Exception as e:
             log.error("Failed to stop Edit Mode recording: %s", e)
+            self._captured_context_future = None
             self._set_state(State.IDLE)
             self._reset_edit_state()
             return
 
         selection = self._edit_selection
         original_clipboard = self._edit_original_clipboard
-        ctx = self._edit_context
 
         if not wav_bytes:
             log.info("Edit Mode: no audio captured.")
             restore_clipboard(original_clipboard)
+            self._captured_context_future = None
             self._set_state(State.IDLE)
             self._reset_edit_state()
             return
 
+        ctx = self._resolve_captured_context()
         self._set_state(State.TRANSCRIBING)
         threading.Thread(
             target=self._process_edit_audio,
@@ -524,7 +575,6 @@ class VocaliApp:
     def _reset_edit_state(self) -> None:
         self._edit_selection = ""
         self._edit_original_clipboard = ""
-        self._edit_context = ""
 
 
 def main() -> int:
