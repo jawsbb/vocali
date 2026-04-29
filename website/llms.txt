@@ -5,7 +5,7 @@ Vocali is a free dictation app for macOS and Windows.
 Canonical site: https://vocali.jawsbb.com/
 Source code: https://github.com/jawsbb/vocali
 macOS download: https://github.com/jawsbb/vocali/releases/latest/download/Vocali.dmg
-Windows install: https://github.com/jawsbb/vocali/tree/main/windows#install
+Windows download: https://github.com/jawsbb/vocali/releases/latest/download/Vocali.exe
 License: MIT
 Platforms: macOS (Apple Silicon and Intel, universal binary) and Windows 10/11
 
