@@ -47,6 +47,7 @@ class Settings:
     edit_mode_enabled: bool = True
     show_overlay: bool = True
     use_window_context: bool = True
+    auto_start: bool = False
     play_sounds: bool = False
     extra: dict = field(default_factory=dict)
 

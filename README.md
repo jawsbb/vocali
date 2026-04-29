@@ -41,17 +41,19 @@ Default shortcuts on macOS: hold **`Fn`** to talk, or tap **`⌘-Fn`** to toggle
 
 The Windows version is a separate from-scratch port written in Python. Lives in [`windows/`](windows/).
 
+**Easiest:** download `Vocali.exe` from the [latest release](https://github.com/jawsbb/vocali/releases/latest), run it. Right-click the tray icon → Settings → paste your Groq API key.
+
+**From source** (if you want to modify it):
+
 ```powershell
 cd windows
 py -m pip install -r requirements.txt
 py vocali.py
 ```
 
-A waveform icon appears in the system tray. Right-click → **Settings** to paste your Groq API key.
+Default shortcuts on Windows: hold **`Right Alt`** to talk, or tap **`Ctrl + Right Alt`** to toggle. (`Fn` cannot be intercepted on most Windows keyboards.) An optional **`Ctrl + Shift + Space`** Edit Mode lets you transform the selected text by voice ("make this shorter", "translate to French"). Settings has a **Run on login** toggle.
 
-Default shortcuts on Windows: hold **`Right Alt`** to talk, or tap **`Ctrl + Right Alt`** to toggle. (`Fn` cannot be intercepted on most Windows keyboards.)
-
-See [`windows/README.md`](windows/README.md) for details.
+See [`windows/README.md`](windows/README.md) for details and build instructions.
 
 ## Features
 
@@ -61,7 +63,7 @@ See [`windows/README.md`](windows/README.md) for details.
 - **Edit Mode** *(macOS only for now)* — highlight text, hold the shortcut, and say "make this shorter" / "turn this into bullets" to transform it.
 - **OpenAI-compatible providers** — use Groq by default, or configure a custom model and API URL in settings.
 
-Windows parity: hotkeys, transcription, LLM cleanup, vocabulary, custom prompt and tray UI are all in. Context-aware cleanup, Edit Mode and a recording overlay are not yet ported.
+Windows parity: hotkeys, transcription, LLM cleanup, vocabulary, custom prompt, tray UI, **Edit Mode**, **recording overlay**, **lightweight foreground-window context**, **run-on-login**, and a **single-file `Vocali.exe` build** are all in. Full UI Automation context and auto-update are not yet ported.
 
 ## Privacy
 

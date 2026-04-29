@@ -6,6 +6,7 @@ import tkinter as tk
 from tkinter import messagebox, ttk
 from typing import Callable
 
+import auto_start
 import config
 import transcription
 
@@ -38,6 +39,10 @@ class SettingsWindow:
         self._edit_enabled_var = tk.BooleanVar(value=settings.edit_mode_enabled)
         self._show_overlay_var = tk.BooleanVar(value=settings.show_overlay)
         self._use_context_var = tk.BooleanVar(value=settings.use_window_context)
+        # Source of truth for the "auto-start" checkbox is the registry, not
+        # settings.json — the user can toggle the registry independently
+        # (msconfig, Task Manager, etc.) and we want the UI to reflect that.
+        self._auto_start_var = tk.BooleanVar(value=auto_start.is_enabled())
 
         self._build()
 
@@ -80,6 +85,14 @@ class SettingsWindow:
             ui_frame,
             text="Show floating recording overlay",
             variable=self._show_overlay_var,
+        ).grid(row=0, column=0, sticky="w", padx=8, pady=6)
+
+        startup_frame = ttk.LabelFrame(general, text="Startup")
+        startup_frame.grid(row=6, column=0, columnspan=3, sticky="ew", padx=12, pady=10)
+        ttk.Checkbutton(
+            startup_frame,
+            text="Start Vocali automatically when I sign in to Windows",
+            variable=self._auto_start_var,
         ).grid(row=0, column=0, sticky="w", padx=8, pady=6)
 
         general.columnconfigure(1, weight=1)
@@ -174,6 +187,7 @@ class SettingsWindow:
         s.edit_mode_enabled = bool(self._edit_enabled_var.get())
         s.show_overlay = bool(self._show_overlay_var.get())
         s.use_window_context = bool(self._use_context_var.get())
+        s.auto_start = bool(self._auto_start_var.get())
         s.custom_vocabulary = self._vocab_text.get("1.0", "end").strip()
         s.custom_system_prompt = self._prompt_text.get("1.0", "end").strip()
         try:
@@ -182,6 +196,13 @@ class SettingsWindow:
         except OSError as e:
             messagebox.showerror("Vocali", f"Failed to save settings: {e}")
             return
+        try:
+            auto_start.set_enabled(s.auto_start)
+        except OSError as e:
+            messagebox.showwarning(
+                "Vocali",
+                f"Settings saved but the auto-start registry update failed: {e}",
+            )
         self._on_save(s)
         self._root.destroy()
 

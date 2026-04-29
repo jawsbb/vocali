@@ -1,0 +1,4 @@
+# Tools needed to produce a standalone Vocali.exe.
+# Install on top of requirements.txt:
+#   py -m pip install -r requirements-build.txt
+pyinstaller>=6.0
