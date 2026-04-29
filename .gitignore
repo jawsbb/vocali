@@ -8,3 +8,4 @@ __pycache__/
 # PyInstaller artifacts
 dist/
 *.spec
+windows/version_info.generated.txt
