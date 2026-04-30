@@ -10,7 +10,13 @@ This project uses semantic versioning for public releases. Use `MAJOR.MINOR.PATC
 - `MINOR` changes add user-visible features and improvements.
 - `PATCH` changes fix bugs, polish existing behavior, or make small internal improvements.
 
-## [0.4.1] - Unreleased
+## [0.4.2] - Unreleased
+
+### Added
+
+- Windows: first-run onboarding. When Vocali boots without a Groq API key configured, it now posts a toast pointing the user at the tray icon and opens the Settings window automatically so they have somewhere to act. Tray-only apps can be invisible to first-time users; this gives them a clear handoff.
+
+## [0.4.1] - 2026-04-29
 
 ### Added
 

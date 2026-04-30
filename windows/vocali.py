@@ -172,7 +172,12 @@ class VocaliApp:
                 self._edit_combo() or "off",
             )
             if not config.get_api_key():
-                log.warning("No API key set yet — open Settings from the tray to add one.")
+                log.warning("No API key set yet — opening Settings for onboarding.")
+                # Tray apps with no UI on launch are confusing for first-time
+                # users. If there's no API key, open Settings automatically
+                # so the user lands somewhere they can act on. A short delay
+                # lets the tray icon paint first so the toast actually shows.
+                threading.Timer(1.2, self._show_onboarding).start()
             if self._settings.check_updates:
                 # Defer the network call so app startup feels instant.
                 threading.Timer(20.0, self._check_for_updates_async,
@@ -301,6 +306,25 @@ class VocaliApp:
             window.run()
         except Exception:
             log.error("Settings window crashed:\n%s", traceback.format_exc())
+
+    def _show_onboarding(self) -> None:
+        """Welcome flow for the first-run-with-no-API-key case.
+
+        We post a Windows toast pointing at the tray icon (so the user
+        learns where Vocali lives) and then open the Settings window so
+        they have a place to paste their key.
+        """
+        if self._tray is not None:
+            try:
+                self._tray.notify(
+                    "Vocali is running",
+                    "Look for the waveform icon in the system tray "
+                    "(near the clock — you may need to expand hidden icons). "
+                    "Settings is opening so you can paste your Groq API key.",
+                )
+            except Exception:
+                pass
+        self._open_settings()
 
     def _apply_settings(self, settings: config.Settings) -> None:
         self._settings = settings

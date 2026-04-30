@@ -7,8 +7,8 @@ A Windows port of [Vocali](https://github.com/jawsbb/vocali) — free dictation 
 ### Option A — `Vocali.exe` (recommended)
 
 1. Download `Vocali.exe` from the [latest release](https://github.com/jawsbb/vocali/releases/latest).
-2. Run it. A waveform icon appears in the system tray.
-3. Right-click the tray icon → **Settings** → paste your free [Groq API key](https://console.groq.com/keys) → **Save**.
+2. Run it. A waveform icon appears in the system tray (near the clock — you may need to click the `^` arrow to see hidden icons).
+3. **First run only**: a toast pops up and the Settings window opens automatically so you can paste your free [Groq API key](https://console.groq.com/keys) → **Save**. On later runs, right-click the tray icon → **Settings** to change anything.
 4. Hold `Right Alt` and speak.
 
 The single-file build is ~33 MB. No Python install required.
