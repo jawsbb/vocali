@@ -55,10 +55,27 @@ class SettingsWindow:
         # --- General tab ---
         general = ttk.Frame(nb)
         nb.add(general, text="General")
-        self._row(general, 0, "Groq API key", self._api_key_var, show="*", width=48)
-        ttk.Button(
-            general, text="Test API key", command=self._test_api_key
-        ).grid(row=0, column=2, padx=8, pady=6)
+
+        # API key gets a custom row with Show / Paste / Test buttons. The
+        # plain `_row` helper doesn't cut it because we need a reference to
+        # the Entry widget (to flip `show` for the masking toggle and to
+        # read its value directly when StringVar is desynced — which can
+        # happen when Tk runs in a non-main thread alongside the global
+        # keyboard hook).
+        ttk.Label(general, text="Groq API key").grid(row=0, column=0, sticky="w", padx=12, pady=6)
+        api_frame = ttk.Frame(general)
+        api_frame.grid(row=0, column=1, columnspan=2, sticky="ew", padx=8, pady=6)
+        self._api_key_entry = ttk.Entry(
+            api_frame, textvariable=self._api_key_var, show="*"
+        )
+        self._api_key_entry.pack(side="left", fill="x", expand=True)
+        self._show_key_var = tk.BooleanVar(value=False)
+        ttk.Checkbutton(
+            api_frame, text="Show", variable=self._show_key_var,
+            command=self._toggle_api_key_visibility,
+        ).pack(side="left", padx=(8, 0))
+        ttk.Button(api_frame, text="Paste", command=self._paste_api_key).pack(side="left", padx=(4, 0))
+        ttk.Button(api_frame, text="Test", command=self._test_api_key).pack(side="left", padx=(4, 0))
 
         self._row(general, 1, "Provider base URL", self._base_url_var, width=48)
         self._row(general, 2, "Transcription model", self._transcription_model_var, width=48)
@@ -169,17 +186,77 @@ class SettingsWindow:
         entry = ttk.Entry(parent, textvariable=var, width=width, show=show)
         entry.grid(row=row, column=1, sticky="ew", padx=8, pady=6)
 
+    def _read_api_key(self) -> str:
+        """Read the API key, preferring the Entry widget over the StringVar.
+
+        Tk's StringVar can desync from the bound Entry when the Tk root
+        runs on a non-main thread (which is our case — pystray owns the
+        main thread). Reading the widget directly is the reliable path.
+        """
+        widget_value = ""
+        try:
+            widget_value = self._api_key_entry.get() or ""
+        except (tk.TclError, AttributeError):
+            pass
+        var_value = ""
+        try:
+            var_value = self._api_key_var.get() or ""
+        except tk.TclError:
+            pass
+        return (widget_value or var_value).strip()
+
+    def _toggle_api_key_visibility(self) -> None:
+        try:
+            self._api_key_entry.configure(
+                show="" if self._show_key_var.get() else "*"
+            )
+        except tk.TclError:
+            pass
+
+    def _paste_api_key(self) -> None:
+        try:
+            text = self._root.clipboard_get()
+        except tk.TclError:
+            messagebox.showwarning("Vocali", "Clipboard is empty.")
+            return
+        text = (text or "").strip()
+        if not text:
+            messagebox.showwarning("Vocali", "Clipboard is empty.")
+            return
+        # Write to BOTH the StringVar and the widget so whichever the rest
+        # of the code reads from gets the new value.
+        self._api_key_var.set(text)
+        try:
+            self._api_key_entry.delete(0, "end")
+            self._api_key_entry.insert(0, text)
+        except tk.TclError:
+            pass
+
     def _test_api_key(self) -> None:
-        key = self._api_key_var.get().strip()
+        key = self._read_api_key()
         url = self._base_url_var.get().strip() or "https://api.groq.com/openai/v1"
         if not key:
-            messagebox.showwarning("Vocali", "Enter an API key first.")
+            messagebox.showwarning(
+                "Vocali",
+                "Enter an API key first. Use the Paste button or type it in.",
+            )
+            return
+        # Persist immediately — losing the key because of a network blip
+        # mid-test is brutal UX. Save first, validate second.
+        try:
+            config.set_api_key(key)
+        except Exception as e:
+            messagebox.showerror("Vocali", f"Could not save the API key: {e}")
             return
         ok = transcription.validate_api_key(key, base_url=url)
         if ok:
-            messagebox.showinfo("Vocali", "API key is valid.")
+            messagebox.showinfo("Vocali", "API key is valid and saved.")
         else:
-            messagebox.showerror("Vocali", "API key check failed.")
+            messagebox.showerror(
+                "Vocali",
+                "API key was saved, but the validation request failed. "
+                "Check the key and your internet, then try Test again.",
+            )
 
     def _save(self) -> None:
         s = self._settings
@@ -202,7 +279,7 @@ class SettingsWindow:
         s.custom_system_prompt = self._prompt_text.get("1.0", "end").strip()
         try:
             s.save()
-            config.set_api_key(self._api_key_var.get().strip())
+            config.set_api_key(self._read_api_key())
         except OSError as e:
             messagebox.showerror("Vocali", f"Failed to save settings: {e}")
             return

@@ -10,7 +10,19 @@ This project uses semantic versioning for public releases. Use `MAJOR.MINOR.PATC
 - `MINOR` changes add user-visible features and improvements.
 - `PATCH` changes fix bugs, polish existing behavior, or make small internal improvements.
 
-## [0.4.2] - Unreleased
+## [0.4.3] - Unreleased
+
+### Fixed
+
+- Windows Settings: API key field could appear filled (asterisks visible) but `.get()` returned empty, so Test API key reported "Enter an API key first" and Save dropped the key. Caused by Tk StringVar desyncing from the Entry widget when the Tk root runs on a non-main thread. Settings now reads the Entry widget directly with the StringVar as fallback.
+
+### Added
+
+- Windows Settings: explicit **Paste** button next to the API key field that uses Tk's `clipboard_get()`. Bypasses any interaction between Ctrl+V and the global keyboard hook.
+- Windows Settings: **Show** checkbox to unmask the API key while typing/verifying.
+- Windows Settings: **Test** now saves the key first, then validates. A failed network test no longer loses your paste.
+
+## [0.4.2] - 2026-04-30
 
 ### Added
 
