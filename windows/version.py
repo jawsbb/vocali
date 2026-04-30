@@ -4,4 +4,4 @@ Bump this when tagging a release. The auto-updater compares this against
 the latest GitHub Releases tag.
 """
 
-VERSION = "0.4.3"
+VERSION = "0.4.4"

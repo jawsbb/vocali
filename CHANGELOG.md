@@ -10,7 +10,19 @@ This project uses semantic versioning for public releases. Use `MAJOR.MINOR.PATC
 - `MINOR` changes add user-visible features and improvements.
 - `PATCH` changes fix bugs, polish existing behavior, or make small internal improvements.
 
-## [0.4.3] - Unreleased
+## [0.4.4] - Unreleased
+
+### Changed
+
+- Windows Settings: redesigned with the Windows 11 fluent look (sv-ttk theme) and an editorial-style layout reminiscent of the Mac FreeFlow Settings pane. Sections now have proper titles, descriptive subtitles, generous spacing, and a window header. Light / dark mode is auto-detected from the system `AppsUseLightTheme` registry value.
+- Windows Settings: tabs (General / Shortcuts / Vocabulary) now scroll vertically instead of forcing a fixed 600 px-tall window.
+- Windows recording overlay: pulls colors from the same theme palette so it matches the rest of the app (and the user's system mode).
+
+### Added
+
+- New `theme.py` module: system-mode detection + sv-ttk application + a shared color palette used by both the Settings window and the recording overlay.
+
+## [0.4.3] - 2026-04-30
 
 ### Fixed
 

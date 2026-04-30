@@ -43,6 +43,12 @@ HIDDEN_IMPORTS = [
     "comtypes.gen",  # uiautomation generates COM stubs into here at runtime
 ]
 
+# Packages whose data files (themes, .tcl, etc.) need to ship alongside
+# the .py modules. ``--collect-all`` bundles modules + binaries + data.
+COLLECT_ALL = [
+    "sv_ttk",  # ships sv.tcl + theme/ folder of Tcl theme files
+]
+
 
 def _read_version() -> str:
     sys.path.insert(0, str(HERE))
@@ -129,6 +135,8 @@ def main() -> int:
         cmd += ["--version-file", str(version_file)]
     for mod in HIDDEN_IMPORTS:
         cmd += ["--hidden-import", mod]
+    for pkg in COLLECT_ALL:
+        cmd += ["--collect-all", pkg]
     cmd.append(str(ENTRY))
 
     print("Running:", " ".join(cmd))

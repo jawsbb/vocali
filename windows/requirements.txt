@@ -7,3 +7,4 @@ pystray>=0.19.5
 Pillow>=10.0
 keyring>=24.0
 uiautomation>=2.0
+sv-ttk>=2.6

@@ -11,20 +11,25 @@ import threading
 import tkinter as tk
 from typing import Literal
 
+import theme
+
 
 State = Literal["idle", "recording", "transcribing", "edit_recording"]
 
 
-_BG = "#1f1f1f"
-_FG_RECORDING = "#e23a3a"
-_FG_TRANSCRIBING = "#f0b428"
-_FG_EDIT = "#7aa9ff"
-
-_LABEL_FOR: dict[State, tuple[str, str]] = {
-    "recording":      ("Recording…",          _FG_RECORDING),
-    "transcribing":   ("Transcribing…",       _FG_TRANSCRIBING),
-    "edit_recording": ("Listening for edit…", _FG_EDIT),
+_LABEL_FOR: dict[State, str] = {
+    "recording":      "Recording…",
+    "transcribing":   "Transcribing…",
+    "edit_recording": "Listening for edit…",
 }
+
+
+def _state_color(state: State, palette: dict[str, str]) -> str:
+    if state == "edit_recording":
+        return palette["accent"]
+    if state == "transcribing":
+        return palette["transcribing"]
+    return palette["recording"]
 
 
 class RecordingOverlay:
@@ -62,20 +67,29 @@ class RecordingOverlay:
     def _run_loop(self) -> None:
         root = tk.Tk()
         root.withdraw()  # hide the implicit root; overlay is a Toplevel
+
+        # Pull background/foreground from the same palette the Settings
+        # window uses so the overlay matches the rest of the app.
+        self._palette = theme.palette()
+        bg = self._palette["surface"]
+
         win = tk.Toplevel(root)
         win.overrideredirect(True)
         win.attributes("-topmost", True)
-        win.attributes("-alpha", 0.92)
-        win.configure(bg=_BG)
+        win.attributes("-alpha", 0.94)
+        win.configure(bg=bg)
 
-        # Compose layout: red dot + status label, side by side.
-        frame = tk.Frame(win, bg=_BG, padx=12, pady=8)
+        # Status pill: dot + label, with a touch of border via padding.
+        frame = tk.Frame(win, bg=bg, padx=14, pady=10)
         frame.pack()
-        dot = tk.Canvas(frame, width=14, height=14, bg=_BG, highlightthickness=0)
-        dot.pack(side="left", padx=(0, 8))
-        dot_id = dot.create_oval(2, 2, 12, 12, fill=_FG_RECORDING, outline="")
+        dot = tk.Canvas(frame, width=14, height=14, bg=bg, highlightthickness=0)
+        dot.pack(side="left", padx=(0, 10))
+        dot_id = dot.create_oval(
+            2, 2, 12, 12, fill=self._palette["recording"], outline=""
+        )
         label = tk.Label(
-            frame, text="Recording…", fg=_FG_RECORDING, bg=_BG,
+            frame, text="Recording…",
+            fg=self._palette["recording"], bg=bg,
             font=("Segoe UI", 10, "bold"),
         )
         label.pack(side="left")
@@ -114,11 +128,11 @@ class RecordingOverlay:
             self._win.withdraw()
             return
 
-        labelled = _LABEL_FOR.get(state)
-        if labelled is None:
+        text = _LABEL_FOR.get(state)
+        if text is None:
             self._win.withdraw()
             return
-        text, color = labelled
+        color = _state_color(state, self._palette)
         self._label.configure(text=text, fg=color)
         self._dot.itemconfigure(self._dot_id, fill=color)
         self._win.deiconify()
