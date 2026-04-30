@@ -10,6 +10,12 @@ This project uses semantic versioning for public releases. Use `MAJOR.MINOR.PATC
 - `MINOR` changes add user-visible features and improvements.
 - `PATCH` changes fix bugs, polish existing behavior, or make small internal improvements.
 
+## [0.4.5] - Unreleased
+
+### Fixed
+
+- Windows: dictation was being pasted twice (or more) when multiple Vocali processes were running simultaneously. Each instance installed its own global keyboard hook, so a single Right Alt press fired all of them. Vocali now grabs a per-user named Windows mutex on startup; secondary launches show a "Vocali is already running" message and exit before installing any hooks.
+
 ## [0.4.4] - Unreleased
 
 ### Changed

@@ -14,6 +14,7 @@ Three pipelines share the same recorder:
 from __future__ import annotations
 
 import concurrent.futures
+import ctypes
 import logging
 import logging.handlers
 import os
@@ -668,7 +669,36 @@ def _write_startup_error(exc: BaseException) -> None:
             continue
 
 
+def _alert_already_running() -> None:
+    """Show a quick info popup when a second Vocali is launched.
+
+    Uses raw user32.MessageBoxW so we don't need a Tk root — the
+    duplicate instance must be stopped before any threads start.
+    """
+    try:
+        ctypes.windll.user32.MessageBoxW(
+            None,
+            "Vocali is already running.\n\n"
+            "Look for the waveform icon in the system tray (near the clock — "
+            "you may need to click the ^ arrow to expand hidden icons).",
+            "Vocali",
+            0x00000040,  # MB_ICONINFORMATION
+        )
+    except Exception:
+        pass
+
+
 def main() -> int:
+    # Single-instance guard. Multiple Vocali processes each install a
+    # global keyboard hook; pressing the dictation shortcut then fires
+    # every instance in parallel, so the user sees their transcript
+    # pasted twice (or N times). Bail before touching any global state.
+    import single_instance
+    if not single_instance.try_acquire():
+        log.warning("Another Vocali instance is already running — exiting.")
+        _alert_already_running()
+        return 0
+
     try:
         log.info("Vocali v%s booting (frozen=%s, exe=%s)",
                  VERSION, getattr(sys, "frozen", False), sys.executable)
