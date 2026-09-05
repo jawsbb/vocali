@@ -1,0 +1,10 @@
+# Shared with the Windows port, minus the Windows-only bits
+# (`keyboard`, `uiautomation`, `pyperclip`).
+sounddevice>=0.4.6
+numpy>=1.24
+requests>=2.31
+pystray>=0.19.5
+Pillow>=10.0
+keyring>=24.0
+sv-ttk>=2.6
+evdev>=1.6

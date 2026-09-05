@@ -1,0 +1,82 @@
+#!/usr/bin/env python3
+"""Vocali for Linux — launcher.
+
+The app logic is shared with the Windows port and lives in `../windows/`.
+This directory only holds the modules that must differ per OS
+(`key_source`, `paste`, `auto_start`, `single_instance`, `context_provider`);
+putting it first on `sys.path` shadows the Windows versions of those names,
+so `import paste` inside the shared code resolves here.
+
+Run it directly:  ./linux/vocali
+"""
+
+from __future__ import annotations
+
+import glob
+import os
+import subprocess
+import sys
+from pathlib import Path
+
+HERE = Path(__file__).resolve().parent
+sys.path.insert(0, str(HERE))                        # Linux overrides win
+sys.path.insert(1, str(HERE.parent / "windows"))     # shared app code
+
+
+def _preflight() -> str | None:
+    """Return a human-readable reason we can't run, or None if we're good."""
+    if not any(os.access(p, os.R_OK) for p in glob.glob("/dev/input/event*")):
+        return (
+            "Vocali needs to read /dev/input to see global hotkeys.\n\n"
+            "  sudo usermod -aG input $USER\n\n"
+            "Then log out and back in (a new terminal is not enough)."
+        )
+    if not os.access("/dev/uinput", os.W_OK):
+        return (
+            "Vocali needs to write /dev/uinput to paste into other windows.\n\n"
+            "  echo 'KERNEL==\"uinput\", TAG+=\"uaccess\"' | "
+            "sudo tee /etc/udev/rules.d/70-uinput.rules\n"
+            "  sudo udevadm control --reload && sudo udevadm trigger\n"
+        )
+    return None
+
+
+def _report(problem: str) -> None:
+    """Say why we're not starting, on stderr *and* on the desktop.
+
+    Launched from ~/.config/autostart nobody ever sees stderr, so a silent
+    exit looks exactly like "Vocali is broken".
+    """
+    print(f"Vocali cannot start.\n\n{problem}", file=sys.stderr)
+    try:
+        subprocess.run(
+            ["notify-send", "--app-name=Vocali", "--urgency=critical",
+             "Vocali cannot start", problem],
+            timeout=5, capture_output=True,
+        )
+    except (OSError, subprocess.SubprocessError):
+        pass
+
+
+def main() -> int:
+    problem = _preflight()
+    if problem is not None:
+        _report(problem)
+        return 1
+
+    # Plasma and GNOME both use StatusNotifierItem for the tray; pystray's
+    # other backends draw XEmbed icons that simply never appear there.
+    os.environ.setdefault("PYSTRAY_BACKEND", "appindicator")
+
+    # The recording overlay has to sit at a chosen spot on a chosen monitor,
+    # and Wayland does not let a client position its own windows. Pinning GDK
+    # to X11 (i.e. XWayland) restores that, and the tray is unaffected because
+    # StatusNotifierItem rides on D-Bus, not on the display server.
+    os.environ.setdefault("GDK_BACKEND", "x11")
+
+    import vocali as app  # resolves to ../windows/vocali.py
+    return app.main()
+
+
+if __name__ == "__main__":
+    sys.exit(main())
