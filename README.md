@@ -55,6 +55,27 @@ Default shortcuts on Windows: hold **`Right Alt`** to talk, or tap **`Ctrl + Rig
 
 See [`windows/README.md`](windows/README.md) for details and build instructions.
 
+### Linux
+
+The Linux version reuses the Windows port's Python code and overrides the five
+OS-specific modules (hotkeys, paste, autostart, single-instance, window context).
+Lives in [`linux/`](linux/). Tested on Fedora / KDE Plasma / Wayland.
+
+```bash
+sudo dnf install python3-evdev libayatana-appindicator-gtk3 wl-clipboard
+sudo usermod -aG input "$USER"   # then log out and back in
+cd linux
+python3 -m venv --system-site-packages .venv
+.venv/bin/pip install -r requirements.txt
+.venv/bin/python ./vocali
+```
+
+Same shortcuts as Windows. Global hotkeys read `/dev/input` and pasting uses a
+`/dev/uinput` virtual keyboard, because Wayland gives applications neither.
+Window context for the cleanup prompt is not available on Wayland.
+
+See [`linux/README.md`](linux/README.md) for the full setup and caveats.
+
 ## Features
 
 - **Custom shortcuts** — customize both hold-to-talk and toggle dictation shortcuts.

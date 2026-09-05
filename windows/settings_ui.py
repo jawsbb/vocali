@@ -8,6 +8,7 @@ its bound Entry when the Tk root runs on a non-main thread.
 
 from __future__ import annotations
 
+import os
 import tkinter as tk
 from tkinter import messagebox, ttk
 from typing import Callable
@@ -61,6 +62,7 @@ class SettingsWindow:
         self._hold_var = tk.StringVar(value=s.hold_shortcut)
         self._toggle_var = tk.StringVar(value=s.toggle_shortcut)
         self._edit_var = tk.StringVar(value=s.edit_shortcut)
+        self._paste_var = tk.StringVar(value=s.paste_shortcut)
         self._edit_enabled_var = tk.BooleanVar(value=s.edit_mode_enabled)
         self._show_overlay_var = tk.BooleanVar(value=s.show_overlay)
         self._use_context_var = tk.BooleanVar(value=s.use_window_context)
@@ -80,7 +82,7 @@ class SettingsWindow:
         ttk.Label(header, text="Vocali", font=("Segoe UI", 22, "bold")).pack(anchor="w")
         ttk.Label(
             header,
-            text="Voice-to-text dictation for Windows.",
+            text="Voice-to-text dictation.",
             foreground=theme.palette(self._theme_mode)["ink_dim"],
         ).pack(anchor="w", pady=(2, 0))
 
@@ -142,7 +144,7 @@ class SettingsWindow:
         self._section(frame, "System")
         ttk.Checkbutton(
             frame,
-            text="Start Vocali automatically when I sign in to Windows",
+            text="Start Vocali automatically when I sign in",
             variable=self._auto_start_var,
         ).pack(anchor="w", padx=PAD_X, pady=(0, 6))
         ttk.Checkbutton(
@@ -198,6 +200,25 @@ class SettingsWindow:
         self._labelled_row(frame, "Edit shortcut", self._edit_var,
                            hint='Default: ctrl+shift+space. Try "make this shorter" or '
                                 '"translate to French".')
+
+        # Terminals ignore Ctrl+V — they want Ctrl+Shift+V. Windows has no
+        # equivalent knob because its paste path is fixed to Ctrl+V.
+        if os.name == "posix":
+            self._section(frame, "Paste",
+                          "Which shortcut Vocali sends to drop the text into the "
+                          "focused app. Wayland hides which app that is, so the "
+                          "right one can't be picked automatically.")
+            ttk.Combobox(
+                frame, textvariable=self._paste_var, state="readonly", width=18,
+                values=("ctrl+v", "ctrl+shift+v", "shift+insert"),
+            ).pack(anchor="w", padx=PAD_X, pady=(0, 2))
+            ttk.Label(
+                frame,
+                text="ctrl+v for browsers and editors · ctrl+shift+v for terminals "
+                     "· shift+insert works in most GTK/Qt apps.",
+                foreground=theme.palette(self._theme_mode)["ink_dim"],
+                font=("Segoe UI", 9),
+            ).pack(anchor="w", padx=PAD_X, pady=(0, 12))
 
         ttk.Label(
             frame,
@@ -405,6 +426,7 @@ class SettingsWindow:
         s.hold_shortcut = self._hold_var.get().strip() or "right alt"
         s.toggle_shortcut = self._toggle_var.get().strip()
         s.edit_shortcut = self._edit_var.get().strip()
+        s.paste_shortcut = self._paste_var.get().strip() or "ctrl+v"
         s.edit_mode_enabled = bool(self._edit_enabled_var.get())
         s.show_overlay = bool(self._show_overlay_var.get())
         s.use_window_context = bool(self._use_context_var.get())

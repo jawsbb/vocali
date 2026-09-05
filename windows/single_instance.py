@@ -50,3 +50,22 @@ def try_acquire() -> bool:
 
     _held_handle = handle
     return True
+
+
+def alert_already_running() -> None:
+    """Tell the user where the already-running instance lives.
+
+    Raw user32.MessageBoxW so we don't need a Tk root — the duplicate
+    instance must bail out before any threads start.
+    """
+    try:
+        ctypes.windll.user32.MessageBoxW(
+            None,
+            "Vocali is already running.\n\n"
+            "Look for the waveform icon in the system tray (near the clock — "
+            "you may need to click the ^ arrow to expand hidden icons).",
+            "Vocali",
+            0x00000040,  # MB_ICONINFORMATION
+        )
+    except Exception:
+        pass

@@ -10,6 +10,28 @@ This project uses semantic versioning for public releases. Use `MAJOR.MINOR.PATC
 - `MINOR` changes add user-visible features and improvements.
 - `PATCH` changes fix bugs, polish existing behavior, or make small internal improvements.
 
+## [0.5.0] - Unreleased
+
+### Added
+
+- **Linux port** (`linux/`). Reuses the Windows port's Python code and overrides only the five modules that must differ per OS; `linux/vocali` puts that directory ahead of `../windows` on `sys.path`. Tested on Fedora 44 / KDE Plasma 6 / Wayland.
+  - Global hotkeys read `/dev/input` via evdev. Wayland's shortcut APIs report a key press but not its release, so hold-to-talk needs the raw device. Keyboards are re-scanned every five seconds, so one that sleeps or is replugged starts working again on its own.
+  - Pasting goes through a virtual keyboard on `/dev/uinput`, which the compositor sees as an ordinary USB keyboard. Clipboard via `wl-copy` / `xclip`.
+  - Recording overlay ported from the Mac app: a black pill hanging from the top edge of whichever monitor the pointer is on, with the cycling dots, the live-level waveform and the processing waveform. GTK3 + Cairo rather than Tk, because Tk on X11 has no per-pixel alpha and X SHAPE is not a substitute — XWayland paints the clipped region black instead of transparent.
+  - Run on login via `~/.config/autostart`, API key in KWallet / Secret Service, single-instance guard on an abstract unix socket, notifications via `notify-send`.
+  - No foreground-window context: Wayland exposes neither the focused window's title nor the text around the cursor, and AT-SPI only sees the shell's own helpers unless accessibility is enabled system-wide.
+
+### Changed
+
+- The paste shortcut is now a setting (`ctrl+v`, `ctrl+shift+v`, `shift+insert`), shown on Linux. Terminals ignore `Ctrl+V` and want `Ctrl+Shift+V`, and Wayland hides which app has focus, so it can't be picked automatically.
+- `audio_recorder` publishes a smoothed 0..1 microphone level while recording, ported from the Mac's `LiveAudioLevelNormalizer`, for the overlay's waveform.
+- Platform-specific behavior moved behind per-OS modules (`key_source`, `notify`, `paste`, `auto_start`, `single_instance`, `context_provider`) so the shared pipeline no longer branches on the OS.
+- Settings and logs follow the XDG base directories on Linux (`~/.config/vocali`, `~/.local/state/Vocali`).
+
+### Fixed
+
+- Tray notifications passed `(title, message)` where pystray expects `(message, title)`, so Windows toasts showed the two the wrong way round.
+
 ## [0.4.5] - Unreleased
 
 ### Fixed
