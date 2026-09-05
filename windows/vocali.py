@@ -1,4 +1,4 @@
-"""Vocali for Windows — entry point.
+"""Vocali — entry point (Windows + Linux).
 
 Wires together: hotkeys → audio capture → Groq transcription → optional LLM
 cleanup → paste-into-foreground-app. Runs as a tray icon.
@@ -14,7 +14,6 @@ Three pipelines share the same recorder:
 from __future__ import annotations
 
 import concurrent.futures
-import ctypes
 import logging
 import logging.handlers
 import os
@@ -34,7 +33,10 @@ CONTEXT_WAIT_TIMEOUT_S = 1.5
 
 
 def _log_dir() -> Path:
-    base = os.environ.get("LOCALAPPDATA") or os.environ.get("APPDATA") or os.path.expanduser("~")
+    if os.name == "posix":
+        base = os.environ.get("XDG_STATE_HOME") or os.path.expanduser("~/.local/state")
+    else:
+        base = os.environ.get("LOCALAPPDATA") or os.environ.get("APPDATA") or os.path.expanduser("~")
     p = Path(base) / "Vocali"
     p.mkdir(parents=True, exist_ok=True)
     return p
@@ -80,6 +82,7 @@ import pystray  # noqa: E402
 
 import config  # noqa: E402
 import context_provider  # noqa: E402
+import notify  # noqa: E402
 import postprocessing  # noqa: E402
 import transcription  # noqa: E402
 import updater  # noqa: E402
@@ -275,27 +278,22 @@ class VocaliApp:
                 self._notify_update(info)
             else:
                 log.info("No update available.")
-                if not silent and self._tray is not None:
-                    try:
-                        self._tray.notify("Vocali", f"You're on the latest version (v{VERSION}).")
-                    except Exception:
-                        pass
+                if not silent:
+                    notify.send("Vocali",
+                                f"You're on the latest version (v{VERSION}).",
+                                self._tray)
             self._refresh_tray()
         finally:
             self._update_check_lock.release()
 
     def _notify_update(self, info: updater.UpdateInfo) -> None:
-        if self._tray is None:
-            return
-        try:
-            self._tray.notify(
-                f"Vocali v{info.version} available",
-                f"Click the tray icon → Update to v{info.version}.",
-            )
-        except Exception:
-            # pystray's notify can fail on some Windows configurations; the
-            # menu item is still visible so the user can find it manually.
-            pass
+        # If the notification doesn't land, the tray menu item is still
+        # there — the user can find the update manually.
+        notify.send(
+            f"Vocali v{info.version} available",
+            f"Click the tray icon → Update to v{info.version}.",
+            self._tray,
+        )
 
     def _open_settings(self, icon=None, item=None) -> None:  # noqa: ARG002
         # tkinter wants its own thread because pystray owns the main thread.
@@ -315,16 +313,12 @@ class VocaliApp:
         learns where Vocali lives) and then open the Settings window so
         they have a place to paste their key.
         """
-        if self._tray is not None:
-            try:
-                self._tray.notify(
-                    "Vocali is running",
-                    "Look for the waveform icon in the system tray "
-                    "(near the clock — you may need to expand hidden icons). "
-                    "Settings is opening so you can paste your Groq API key.",
-                )
-            except Exception:
-                pass
+        notify.send(
+            "Vocali is running",
+            "Look for the waveform icon in the system tray. "
+            "Settings is opening so you can paste your Groq API key.",
+            self._tray,
+        )
         self._open_settings()
 
     def _apply_settings(self, settings: config.Settings) -> None:
@@ -652,6 +646,7 @@ def _write_startup_error(exc: BaseException) -> None:
         + "".join(traceback.format_exception(type(exc), exc, exc.__traceback__))
     )
     candidates = [
+        str(_log_dir().parent),
         os.environ.get("LOCALAPPDATA"),
         os.environ.get("APPDATA"),
         os.path.expanduser("~"),
@@ -669,25 +664,6 @@ def _write_startup_error(exc: BaseException) -> None:
             continue
 
 
-def _alert_already_running() -> None:
-    """Show a quick info popup when a second Vocali is launched.
-
-    Uses raw user32.MessageBoxW so we don't need a Tk root — the
-    duplicate instance must be stopped before any threads start.
-    """
-    try:
-        ctypes.windll.user32.MessageBoxW(
-            None,
-            "Vocali is already running.\n\n"
-            "Look for the waveform icon in the system tray (near the clock — "
-            "you may need to click the ^ arrow to expand hidden icons).",
-            "Vocali",
-            0x00000040,  # MB_ICONINFORMATION
-        )
-    except Exception:
-        pass
-
-
 def main() -> int:
     # Single-instance guard. Multiple Vocali processes each install a
     # global keyboard hook; pressing the dictation shortcut then fires
@@ -696,7 +672,7 @@ def main() -> int:
     import single_instance
     if not single_instance.try_acquire():
         log.warning("Another Vocali instance is already running — exiting.")
-        _alert_already_running()
+        single_instance.alert_already_running()
         return 0
 
     try:

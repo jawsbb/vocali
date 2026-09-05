@@ -1,7 +1,7 @@
 """Global hotkey handling: hold-to-talk and tap-to-toggle.
 
-We hook every keyboard event with the `keyboard` library and maintain our own
-set of currently-pressed key names. This avoids `keyboard.is_pressed`, whose
+We hook every keyboard event through `key_source` (the `keyboard` library on
+Windows, evdev on Linux) and maintain our own set of currently-pressed key names. This avoids `keyboard.is_pressed`, whose
 hotkey parser rejects multi-word names like "right alt" on layouts where the
 key is reported as "alt gr" (AZERTY) or "right ctrl" (some installations).
 
@@ -98,14 +98,13 @@ class HotkeyManager:
     def start(self) -> None:
         if self._hook is not None:
             return
-        import keyboard
-        self._hook = keyboard.hook(self._on_event)
+        import key_source
+        self._hook = key_source.hook(self._on_event)
 
     def stop(self) -> None:
         if self._hook is None:
             return
-        import keyboard
-        keyboard.unhook(self._hook)
+        self._hook()
         self._hook = None
         with self._lock:
             self._pressed.clear()
@@ -130,7 +129,7 @@ class HotkeyManager:
         if was_running:
             self.start()
 
-    # `keyboard.hook` callback. Runs on the library's listener thread.
+    # `key_source.hook` callback. Runs on the source's listener thread.
     def _on_event(self, event) -> None:
         if event.event_type not in ("down", "up"):
             return

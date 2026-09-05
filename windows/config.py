@@ -1,7 +1,9 @@
 """Persisted settings + secure API-key storage.
 
-Plain settings live in `%APPDATA%\\Vocali\\settings.json`. The Groq API key
-goes into Windows Credential Manager via `keyring`, never the JSON file.
+Plain settings live in `%APPDATA%\\Vocali\\settings.json` on Windows and
+`~/.config/vocali/settings.json` on Linux. The Groq API key goes to the OS
+secret store via `keyring` (Credential Manager / KWallet / Secret Service),
+never the JSON file.
 """
 
 from __future__ import annotations
@@ -20,8 +22,12 @@ KEYRING_USER = "groq-api-key"
 
 
 def _config_dir() -> Path:
-    base = os.environ.get("APPDATA") or os.path.expanduser("~")
-    path = Path(base) / "Vocali"
+    if os.name == "posix":
+        base = os.environ.get("XDG_CONFIG_HOME") or os.path.expanduser("~/.config")
+        path = Path(base) / "vocali"
+    else:
+        base = os.environ.get("APPDATA") or os.path.expanduser("~")
+        path = Path(base) / "Vocali"
     path.mkdir(parents=True, exist_ok=True)
     return path
 
@@ -44,6 +50,7 @@ class Settings:
     hold_shortcut: str = "right alt"
     toggle_shortcut: str = "ctrl+right alt"
     edit_shortcut: str = "ctrl+shift+space"
+    paste_shortcut: str = "ctrl+v"
     edit_mode_enabled: bool = True
     show_overlay: bool = True
     use_window_context: bool = True
