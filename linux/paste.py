@@ -127,17 +127,64 @@ def _clip_write(text: str) -> None:
     _write(["xclip", "-selection", "clipboard"], text.encode("utf-8"))
 
 
-def _clip_read() -> str:
-    cmd = (["wl-paste", "--no-newline", "--type", "text/plain;charset=utf-8"]
-           if _WAYLAND else ["xclip", "-selection", "clipboard", "-o"])
+def _run_read(cmd: list[str]) -> bytes | None:
     try:
         result = subprocess.run(cmd, capture_output=True, timeout=3)
     except (OSError, subprocess.SubprocessError) as e:
         log.warning("Clipboard read via %s failed: %s", cmd[0], e)
-        return ""
+        return None
     if result.returncode != 0:
-        return ""  # empty clipboard, or it holds something that isn't text
-    return result.stdout.decode("utf-8", errors="replace")
+        return None  # empty clipboard, or it doesn't offer that type
+    return result.stdout
+
+
+def _clip_read() -> str:
+    data = _run_read(["wl-paste", "--no-newline", "--type", "text/plain;charset=utf-8"]
+                     if _WAYLAND else ["xclip", "-selection", "clipboard", "-o"])
+    return data.decode("utf-8", errors="replace") if data is not None else ""
+
+
+# The clipboard as the user left it: one MIME type and its bytes, or None
+# when it was empty. A text-only save would drop a copied image or file.
+Snapshot = tuple[str, bytes] | None
+
+def _preferred_type(types: list[str]) -> str | None:
+    """Restoring serves a single type (wl-copy/xclip), so keep the richest."""
+    for t in types:
+        if t.startswith("image/"):
+            return t
+    for t in ("text/uri-list", "text/plain;charset=utf-8", "UTF8_STRING", "text/plain"):
+        if t in types:
+            return t
+    return types[0] if types else None
+
+
+def _clip_snapshot() -> Snapshot:
+    listing = _run_read(["wl-paste", "--list-types"] if _WAYLAND
+                        else ["xclip", "-selection", "clipboard", "-t", "TARGETS", "-o"])
+    if not listing:
+        return None
+    mime = _preferred_type(listing.decode("utf-8", errors="replace").split())
+    if mime is None:
+        return None
+    data = _run_read(["wl-paste", "--no-newline", "--type", mime] if _WAYLAND
+                     else ["xclip", "-selection", "clipboard", "-t", mime, "-o"])
+    return (mime, data) if data is not None else None
+
+
+def _clip_restore(snapshot: Snapshot) -> None:
+    if snapshot is None:
+        if _WAYLAND:
+            _write(["wl-copy", "--clear"], b"")
+        return
+    mime, data = snapshot
+    _write(["wl-copy", "--type", mime] if _WAYLAND
+           else ["xclip", "-selection", "clipboard", "-t", mime], data)
+
+
+# How long the focused app gets to read our text before the user's clipboard
+# comes back. Apps fetch the clipboard asynchronously after Ctrl+V.
+_RESTORE_DELAY_S = 0.5
 
 
 # ---- public API (mirrors windows/paste.py) ----
@@ -145,21 +192,25 @@ def _clip_read() -> str:
 def paste_text(text: str) -> None:
     if not text:
         return
+    saved = _clip_snapshot()
     _clip_write(text)
     # Give the clipboard manager a moment to take ownership.
     time.sleep(0.05)
     _release_user_modifiers()
     time.sleep(0.02)
     _tap(*_paste_chord())
+    time.sleep(_RESTORE_DELAY_S)
+    _clip_restore(saved)
 
 
-def copy_selection(timeout_ms: int = 300) -> tuple[str, str]:
+def copy_selection(timeout_ms: int = 300) -> tuple[str, Snapshot]:
     """Capture the focused window's selection via Ctrl+C.
 
     Returns `(selection, original_clipboard)`. Selection is empty when
-    nothing was selected. The caller restores the clipboard.
+    nothing was selected. The caller hands `original_clipboard` back to
+    `restore_clipboard`, which puts back images and files as well as text.
     """
-    original = _clip_read()
+    original = _clip_snapshot()
 
     # Sentinel so "the selection happens to equal the old clipboard" still
     # reads as a successful copy.
@@ -179,5 +230,5 @@ def copy_selection(timeout_ms: int = 300) -> tuple[str, str]:
     return "", original
 
 
-def restore_clipboard(text: str) -> None:
-    _clip_write(text)
+def restore_clipboard(original: Snapshot) -> None:
+    _clip_restore(original)

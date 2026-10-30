@@ -134,13 +134,15 @@ Linux-specific:
 
 - `vocali` — launcher: preflight checks, `sys.path` overlay, then the shared app
 - `key_source.py` — global key events from `/dev/input` via evdev
-- `paste.py` — clipboard (`wl-copy`/`xclip`) + `Ctrl+V` through `/dev/uinput`
+- `paste.py` — clipboard (`wl-copy`/`xclip`) + `Ctrl+V` through `/dev/uinput`;
+  the user's clipboard (image, files or text) is put back after each paste
 - `auto_start.py` — `~/.config/autostart/vocali.desktop`
 - `recording_overlay.py` — the macOS-style pill: GTK3 + Cairo, live waveform
 - `notify.py` — desktop notifications via `notify-send` (pystray has none here)
 - `single_instance.py` — abstract-unix-socket guard against a double launch
 - `context_provider.py` — stub, see above
 - `test_key_names.py` — checks evdev key names still satisfy the combo parser
+- `test_clipboard_restore.py` — checks a copied image survives a dictation
 
 Everything else (`config`, `audio_recorder`, `transcription`, `postprocessing`,
 `hotkeys`, `settings_ui`, `updater`, `theme`) comes from
